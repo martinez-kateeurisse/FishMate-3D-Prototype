@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FishMate · 3D Prototype Viewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-0:#06141b;--bg-1:#0b2733;--ink:#e8f4f4;--muted:#7fa3ad;
+    --line:#1c4452;--cyan:#34e2d2;--green:#6bf07a;--panel:rgba(8,28,36,.82);
+    --btn-bg:#0a2530;--lbl-bg:rgba(6,20,27,.78);
+  }
+  body.light{
+    --bg-0:#dceef6;--bg-1:#c4dcea;--ink:#0a1e28;--muted:#3a6070;
+    --line:#90b8c8;--panel:rgba(224,240,250,.92);--btn-bg:#e0eef5;--lbl-bg:rgba(220,238,248,.9);
+    background:radial-gradient(120% 90% at 70% 8%,#b8d8e8 0%,#cce0ec 40%,#dceef6 100%);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden}
+  body{font-family:'Space Mono',ui-monospace,monospace;
+    background:radial-gradient(120% 90% at 70% 8%,#103645 0%,var(--bg-1) 40%,var(--bg-0) 100%);
+    color:var(--ink);-webkit-font-smoothing:antialiased;}
+  #scene{position:fixed;inset:0;display:block;cursor:grab}
+  #scene:active{cursor:grabbing}
+
+  header{position:fixed;top:0;left:0;right:0;z-index:6;padding:18px 22px;
+    display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none;}
+  .brand h1{font-family:'Familjen Grotesk',sans-serif;font-weight:700;font-size:26px;letter-spacing:-.5px}
+  .brand h1 span{color:var(--cyan)}
+  .tag{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--muted)}
+  .meta{text-align:right;font-size:10px;letter-spacing:1px;color:var(--muted);line-height:1.7}
+  .meta b{color:var(--ink);font-weight:700}
+  .dock{position:fixed;left:18px;bottom:18px;z-index:6;
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:14px;backdrop-filter:blur(12px);width:248px;max-width:calc(100vw - 36px);}
+  .dock h2{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);
+    margin-bottom:11px;display:flex;align-items:center;gap:8px;}
+  .dock h2::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+  .btn{width:100%;text-align:left;background:var(--btn-bg);border:1px solid var(--line);
+    color:var(--ink);font-family:inherit;font-size:12px;padding:9px 12px;border-radius:9px;
+    cursor:pointer;margin-bottom:7px;display:flex;justify-content:space-between;align-items:center;
+    transition:border-color .18s,background .18s;}
+  .btn:hover{border-color:var(--cyan);background:#0d3340}
+  .btn .state{font-size:9px;letter-spacing:1px;text-transform:uppercase;
+    padding:2px 7px;border-radius:20px;border:1px solid var(--line);color:var(--muted);}
+  .btn.on .state{color:var(--bg-0);background:var(--cyan);border-color:var(--cyan);font-weight:700}
+  .hint{font-size:9.5px;color:var(--muted);line-height:1.6;margin-top:4px}
+  .legend{position:fixed;right:18px;bottom:18px;z-index:6;
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:13px 15px;backdrop-filter:blur(12px);font-size:10.5px;line-height:2;max-width:210px;}
+  .legend h2{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+  .legend div{display:flex;align-items:center;gap:9px;color:#cfe4e6}
+  .swatch{width:11px;height:11px;border-radius:3px;flex:none;border:1px solid rgba(255,255,255,.15)}
+  #labels{position:fixed;inset:0;z-index:5;pointer-events:none;overflow:hidden}
+  .lbl{position:absolute;transform:translate(-50%,-50%);font-size:10px;letter-spacing:.5px;
+    color:var(--ink);background:var(--lbl-bg);border:1px solid var(--line);
+    padding:3px 8px;border-radius:20px;white-space:nowrap;backdrop-filter:blur(4px);transition:opacity .2s;}
+  .lbl::before{content:"";position:absolute;left:-5px;top:50%;transform:translateY(-50%);
+    width:5px;height:5px;border-radius:50%;background:var(--cyan);box-shadow:0 0 6px var(--cyan)}
+  .lbl.sensor::before{background:var(--green);box-shadow:0 0 6px var(--green)}
+  #loader{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
+    flex-direction:column;gap:14px;background:var(--bg-0);transition:opacity .6s;}
+  #loader.hide{opacity:0;pointer-events:none}
+  .spin{width:34px;height:34px;border:2px solid var(--line);border-top-color:var(--cyan);border-radius:50%;animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  #loader p{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--muted)}
+  @media(max-width:720px){.legend{display:none}.brand h1{font-size:20px}.dock{width:210px}}
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+<div id="labels"></div>
+<header>
+  <div class="brand">
+    <h1>Fish<span>Mate</span></h1>
+    <div class="tag">Prototype · 3D Layout</div>
+  </div>
+  <div class="meta">
+    TANK <b>20 × 20 × 20 cm</b><br>
+    TRAY <b>25 × 10 × 7 cm</b><br>
+    ACRYLIC · LOCAL ESP32
+  </div>
+</header>
+<div class="dock">
+  <h2>Controls</h2>
+  <button class="btn on" id="b-lid"><span>Enclosure lid</span><span class="state">closed</span></button>
+  <button class="btn on" id="b-water"><span>Water fill</span><span class="state">on</span></button>
+  <button class="btn on" id="b-internals"><span>Internal parts</span><span class="state">shown</span></button>
+  <button class="btn on" id="b-labels"><span>Labels</span><span class="state">on</span></button>
+  <button class="btn on" id="b-rotate"><span>Auto-rotate</span><span class="state">off</span></button>
+  <button class="btn on" id="b-casing"><span>Float casing color</span><span class="state">foam</span></button>
+  <button class="btn" id="b-reset"><span>Reset view</span><span class="state">↺</span></button>
+  <button class="btn" id="b-theme"><span>Light mode</span><span class="state">off</span></button>
+  <p class="hint">Drag = orbit · Scroll / pinch = zoom</p>
+</div>
+<div class="legend">
+  <h2>Components</h2>
+  <div><span class="swatch" style="background:#9fd9ec"></span>Acrylic tank (20³ cm)</div>
+  <div><span class="swatch" style="background:#f2f0ea"></span>Foam tray (25×10×7)</div>
+  <div><span class="swatch" style="background:#e8d0d4"></span>Lower platform (5 cm)</div>
+  <div><span class="swatch" style="background:#c8c0b4"></span>Float sensor casing</div>
+  <div><span class="swatch" style="background:#16306a"></span>ESP32 + breadboard</div>
+  <div><span class="swatch" style="background:#cfd6da"></span>Turbidity / temp probe</div>
+  <div><span class="swatch" style="background:#6bf07a"></span>IR beam · status LED</div>
+</div>
+<div id="loader"><div class="spin"></div><p>Assembling prototype</p></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  const T3 = window.THREE;
+  const canvas = document.getElementById('scene');
+  const renderer = new T3.WebGLRenderer({canvas, antialias:true, alpha:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = T3.PCFSoftShadowMap;
+
+  const scene = new T3.Scene();
+  scene.fog = new T3.FogExp2(0x06141b, 0.004);
+  const camera = new T3.PerspectiveCamera(42,1,0.1,1000);
+
+  // ── Lighting ──────────────────────────────────────
+  scene.add(new T3.AmbientLight(0xa0c8d8, 0.55));
+  const key = new T3.DirectionalLight(0xffffff, 1.0);
+  key.position.set(40,60,35); key.castShadow=true;
+  key.shadow.mapSize.set(2048,2048);
+  key.shadow.camera.near=1; key.shadow.camera.far=200;
+  key.shadow.camera.left=-50; key.shadow.camera.right=50;
+  key.shadow.camera.top=60; key.shadow.camera.bottom=-40;
+  key.shadow.bias=-0.0004; scene.add(key);
+  {const fl=new T3.DirectionalLight(0x34e2d2,0.3);fl.position.set(-40,20,-30);scene.add(fl);}
+  const rimPt = new T3.PointLight(0x6bf07a,0.5,100); rimPt.position.set(0,30,-12); scene.add(rimPt);
+
+  // ── Ground ─────────────────────────────────────────
+  const ground = new T3.Mesh(new T3.CircleGeometry(120,64),
+    new T3.MeshStandardMaterial({color:0x081e26,roughness:0.95}));
+  ground.rotation.x=-Math.PI/2; ground.position.y=-0.05; ground.receiveShadow=true; scene.add(ground);
+  const grid = new T3.PolarGridHelper(100,16,8,64,0x1c4452,0x123440);
+  grid.material.opacity=0.3; grid.material.transparent=true; scene.add(grid);
+
+  // ── Dimensions (cm) ───────────────────────────────
+  // Aquarium: 20×20×20 cube, centered at (0,10,0) in XZ, base at y=0
+  const AQ = {w:20,d:20,h:20,wall:0.4};
+  // Foam tray: 25×10×7, back half (z: -10→0), overhangs x by 2.5 each side
+  const TR = {w:25,d:10,h:7,wall:1.4};
+  // Lower platform: 5 cm deep, hangs into tank below rim (z: -10→0, inside tank x)
+  const LP = {w:20,d:10,h:5,wall:1.2};
+  // Float casing: 4×4×4 on z=0 face of lower platform
+  const FC = {w:4,h:4,d:4};
+  const waterTop = 12.5;
+
+  // ── Material library ──────────────────────────────
+  function mat(p){return new T3.MeshStandardMaterial(p);}
+  const M = {
+    glass:   mat({color:0xbfeaff,transparent:true,opacity:0.15,roughness:0.05,side:T3.DoubleSide,depthWrite:false}),
+    edge:    new T3.LineBasicMaterial({color:0x7fd6ea,transparent:true,opacity:0.5}),
+    water:   mat({color:0x2a8ec8,transparent:true,opacity:0.28,roughness:0.15,depthWrite:false}),
+    waterT:  mat({color:0x5dc8ef,transparent:true,opacity:0.38,roughness:0.1,side:T3.DoubleSide,depthWrite:false}),
+    foam:    mat({color:0xf2f0ea,roughness:0.97}),
+    foamLo:  mat({color:0xe8d0d4,roughness:0.97}),   // lower platform tint
+    foamCas: mat({color:0xc8c0b4,roughness:0.95}),   // float casing
+    board:   mat({color:0x16306a,roughness:0.55,metalness:0.2}),
+    shield:  mat({color:0xc8cdd2,roughness:0.3,metalness:0.85}),
+    gold:    mat({color:0xe2b85a,roughness:0.4,metalness:0.8}),
+    bread:   mat({color:0xe9e5d6,roughness:0.85}),
+    relay:   mat({color:0x2360e0,roughness:0.5}),
+    black:   mat({color:0x14181c,roughness:0.7}),
+    metal:   mat({color:0xd2d8dc,roughness:0.25,metalness:0.9}),
+    pump:    mat({color:0x33373b,roughness:0.6,metalness:0.3}),
+    tube:    mat({color:0xaee3ff,transparent:true,opacity:0.4}),
+    float_:  mat({color:0xff7a36,roughness:0.5}),
+    led:     mat({color:0x6bf07a,emissive:0x35d24a,emissiveIntensity:1.5}),
+    pink:    mat({color:0xf3d3d8,roughness:0.95}),
+  };
+  const wireMat=c=>mat({color:c,roughness:0.55});
+  const WC={red:0xff4d4d,yel:0xffd23f,grn:0x49d96a,blu:0x3a9bff,blk:0x1a1a1a,wht:0xdddddd};
+
+  // ── Helpers ───────────────────────────────────────
+  const bx=(w,h,d,m,sh)=>{const o=new T3.Mesh(new T3.BoxGeometry(w,h,d),m);if(sh){o.castShadow=true;o.receiveShadow=true;}return o;};
+  const cy=(rt,rb,h,m,s=20)=>{const o=new T3.Mesh(new T3.CylinderGeometry(rt,rb,h,s),m);o.castShadow=true;return o;};
+  const place=(o,x,y,z)=>{o.position.set(x,y,z);return o;};
+  const root=new T3.Group(); scene.add(root);
+
+  // ══════════════════════════════════════════════════
+  // 1. ACRYLIC AQUARIUM  20×20×20, base y=0
+  // ══════════════════════════════════════════════════
+  const tankG=new T3.Group(); root.add(tankG);
+  // 4 side panels + base (thin glass)
+  [[AQ.w,AQ.h,AQ.wall,0,AQ.h/2,-AQ.d/2],   // back
+   [AQ.w,AQ.h,AQ.wall,0,AQ.h/2, AQ.d/2],   // front
+   [AQ.wall,AQ.h,AQ.d,-AQ.w/2,AQ.h/2,0],   // left
+   [AQ.wall,AQ.h,AQ.d, AQ.w/2,AQ.h/2,0],   // right
+   [AQ.w,AQ.wall,AQ.d,0,AQ.wall/2,0]        // base
+  ].forEach(([w,h,d,x,y,z])=>{
+    const p=bx(w,h,d,M.glass); p.renderOrder=10; p.position.set(x,y,z); tankG.add(p);
+  });
+  // crisp acrylic edges
+  const edgeMesh=new T3.LineSegments(
+    new T3.EdgesGeometry(new T3.BoxGeometry(AQ.w,AQ.h,AQ.d)), M.edge);
+  edgeMesh.position.set(0,AQ.h/2,0); tankG.add(edgeMesh);
+
+  // ══════════════════════════════════════════════════
+  // 2. WATER  (full interior, y 0→13.5)
+  // ══════════════════════════════════════════════════
+  const waterG=new T3.Group(); root.add(waterG);
+  const w_in=AQ.w-2*AQ.wall-0.1, d_in=AQ.d-2*AQ.wall-0.1;
+  const wBody=bx(w_in,waterTop,d_in,M.water);
+  wBody.position.set(0,waterTop/2,0); wBody.renderOrder=8; waterG.add(wBody);
+  const wSurf=new T3.Mesh(new T3.PlaneGeometry(w_in,d_in),M.waterT);
+  wSurf.rotation.x=-Math.PI/2; wSurf.position.y=waterTop; wSurf.renderOrder=9; waterG.add(wSurf);
+
+  // ══════════════════════════════════════════════════
+  // 3. FOAM TRAY  25×10×7, sits on rim (y=20→27), back half (z: -10→0)
+  //    overhangs tank in x by 2.5 cm each side
+  // ══════════════════════════════════════════════════
+  const trayG=new T3.Group(); root.add(trayG);
+  // tray sits centered in x, z from -10 to 0; center: (0, 23.5, -5)
+  const TZ=-5; // center z of tray
+  // floor slab
+  const tFloor=bx(TR.w,TR.wall,TR.d,M.foam,true);
+  tFloor.position.set(0, AQ.h+TR.wall/2, TZ); trayG.add(tFloor);
+  // pink trim ring on top of floor
+  const tPink=bx(TR.w-0.5,0.3,TR.d-0.5,M.pink);
+  tPink.position.set(0, AQ.h+TR.wall+0.15, TZ); trayG.add(tPink);
+  // 4 walls (no top — open for lid)
+  const wallH=TR.h-TR.wall; const wallBase=AQ.h+TR.wall+wallH/2;
+  // back wall (z = -10, inner face at z=-8.6)
+  trayG.add(place(bx(TR.w,wallH,TR.wall,M.foam,true),0,wallBase,-10+TR.wall/2));
+  // front wall (z = 0, inner face at z=-1.4)
+  trayG.add(place(bx(TR.w,wallH,TR.wall,M.foam,true),0,wallBase,-TR.wall/2));
+  // left wall
+  trayG.add(place(bx(TR.wall,wallH,TR.d-2*TR.wall,M.foam,true),-TR.w/2+TR.wall/2,wallBase,TZ));
+  // right wall
+  trayG.add(place(bx(TR.wall,wallH,TR.d-2*TR.wall,M.foam,true), TR.w/2-TR.wall/2,wallBase,TZ));
+  // status LED on front wall
+  const ledG=cy(0.45,0.45,0.9,M.led,16);
+  ledG.rotation.x=Math.PI/2; ledG.position.set(7, AQ.h+TR.wall+wallH*0.5, -TR.wall/2-0.1); trayG.add(ledG);
+  const ledPt=new T3.PointLight(0x6bf07a,0.7,12); ledPt.position.copy(ledG.position); trayG.add(ledPt);
+
+  // ── LID (toggleable) ──────────────────────────────
+  const lidG_=new T3.Group(); root.add(lidG_);
+  const lidY=AQ.h+TR.h+0.75;
+  const lid_=bx(TR.w+3,1.5,TR.d+2,M.foam,true); lid_.position.set(0,lidY,TZ); lidG_.add(lid_);
+  // black grip slots (overhanging sides, as in photo)
+  [-TR.w/2-1.3, TR.w/2+1.3].forEach(sx=>{
+    const sl=bx(1.0,1.6,TR.d-2,M.black); sl.position.set(sx,lidY,TZ); lidG_.add(sl);
+  });
+  const lidRestY=lidG_.position.y;
+
+  // ══════════════════════════════════════════════════
+  // 4. LOWER PLATFORM  5 cm deep, hangs into tank (y: 15→20, z: -10→0)
+  //    open on z=0 face (faces open water)
+  // ══════════════════════════════════════════════════
+  const lowerG=new T3.Group(); root.add(lowerG);
+  const lpY0=AQ.h-LP.h; // bottom of lower platform = 15
+  const lpYc=lpY0+LP.h/2; // center y = 17.5
+  // back wall  (z=-10)
+  lowerG.add(place(bx(LP.w,LP.h,LP.wall,M.foamLo,true),0,lpYc,-10+LP.wall/2));
+  // left wall
+  lowerG.add(place(bx(LP.wall,LP.h,LP.d-LP.wall,M.foamLo,true),-LP.w/2+LP.wall/2,lpYc,-5+LP.wall/2));
+  // right wall
+  lowerG.add(place(bx(LP.wall,LP.h,LP.d-LP.wall,M.foamLo,true), LP.w/2-LP.wall/2,lpYc,-5+LP.wall/2));
+  // (bottom is open — sensors pass through, water enters)
+  // thin indicator of bottom edge
+  lowerG.add(place(bx(LP.w,0.3,LP.d,M.foamLo),0,lpY0+0.15,-5));
+
+  // ── Float sensor casing: 4×4×4 attached BELOW lower platform, centered ──
+  const fcY=lpY0-FC.h/2;   // y = 15 - 2 = 13  (center below platform)
+  const fcZ=-FC.d/2;        // front edge of lower platform (z=0 face), center z = -2
+  const floatCaseG=new T3.Group(); root.add(floatCaseG);
+  const fCase=bx(FC.w,FC.h,FC.d,M.foamCas,true);
+  fCase.position.set(0, fcY, fcZ); floatCaseG.add(fCase);
+  // bottom sensing slot — float rod passes through here
+  const fHole=bx(FC.w-1.8,0.3,FC.d-1.8,M.black);
+  fHole.position.set(0, fcY-FC.h/2+0.1, fcZ); floatCaseG.add(fHole);
+
+  // ══════════════════════════════════════════════════
+  // 5. INTERNAL ELECTRONICS  (inside foam tray)
+  // ══════════════════════════════════════════════════
+  const elecG=new T3.Group(); root.add(elecG);
+  const FY=AQ.h+TR.wall; // interior floor top = 21.4
+
+  // breadboard
+  const bread=bx(17,1,5.6,M.bread,true); bread.position.set(-1,FY+0.5,TZ); elecG.add(bread);
+  elecG.add(place(bx(17,1.05,0.4,mat({color:0xbab59f,roughness:0.9})),-1,FY+0.55,TZ));
+
+  // ESP32 — left area of tray
+  const esp=bx(5.2,0.35,2.6,M.board,true); esp.position.set(-9,FY+0.5,-3); elecG.add(esp);
+  elecG.add(place(bx(1.7,0.55,1.7,M.shield),-9.9,FY+0.95,-3));
+  [-3.9,-2.1].forEach(dz=>{elecG.add(place(bx(5,0.25,0.35,M.gold),-9,FY+0.78,-3+dz+3));});
+
+  // relay module
+  const relay=bx(5,1.6,2.7,M.relay,true); relay.position.set(7.5,FY+1.1,-3.5); elecG.add(relay);
+  elecG.add(place(bx(1.7,1.4,1.7,mat({color:0x1746b0,roughness:0.5})),7.5,FY+2.2,-3.5));
+
+  // MOSFETs
+  [3.5,5].forEach(xx=>{
+    elecG.add(place(bx(0.7,1.4,0.5,M.black),xx,FY+0.9,-1.5));
+    elecG.add(place(bx(0.7,0.8,0.1,M.metal),xx,FY+1.7,-1.5));
+  });
+
+  // buzzer
+  const buz=cy(1,1,0.9,M.black,20); buz.position.set(2,FY+0.9,TZ); elecG.add(buz);
+
+  // arc jumper wires
+  function arcWire(x1,z1,x2,z2,col,lift=1.8){
+    const a=new T3.Vector3(x1,FY+0.7,z1), b=new T3.Vector3(x2,FY+0.7,z2);
+    const mid=a.clone().add(b).multiplyScalar(0.5); mid.y+=lift;
+    const g=new T3.TubeGeometry(new T3.QuadraticBezierCurve3(a,mid,b),18,0.12,8,false);
+    elecG.add(new T3.Mesh(g,wireMat(col)));
+  }
+  arcWire(-9,-2,-4,TZ,WC.red); arcWire(-9,-2.4,-4,TZ,WC.blk);
+  arcWire(-7,-3.5,4,-1.5,WC.yel,2); arcWire(-5,TZ,6,-3,WC.grn,2.2);
+  arcWire(-3,TZ,7,-2.5,WC.blu,1.5);
+
+  // ══════════════════════════════════════════════════
+  // 6. SENSORS — mount at platform bottom (y≈15), hang into water
+  // ══════════════════════════════════════════════════
+  const sensG=new T3.Group(); root.add(sensG);
+  const mountY=lpY0;
+  const clearSlv=mat({color:0xd8eeff,transparent:true,opacity:0.26,roughness:0.06,side:T3.DoubleSide,depthWrite:false});
+
+  // ── Turbidity sensor — waterproof cylindrical probe (like DFRobot image) + PCB board ──
+  const txS=-7, tzS=-5;
+  // thin metal stem from tray floor down to collar
+  const tStemH=FY-14.6;
+  const tStem=cy(0.4,0.4,tStemH,M.metal,14);
+  tStem.position.set(txS,(FY+14.6)/2,tzS); sensG.add(tStem);
+  // black mounting collar with side wing tabs (top of probe)
+  const tCollar=cy(1.9,1.9,1.1,mat({color:0x1a1e22,roughness:0.6}),20);
+  tCollar.position.set(txS,14.0,tzS); sensG.add(tCollar);
+  [-1,1].forEach(sx=>{
+    const tab=bx(0.5,0.8,1.1,mat({color:0x1a1e22,roughness:0.6}));
+    tab.position.set(txS+sx*2.3,14.0,tzS); sensG.add(tab);
+  });
+  // main cylindrical probe body — translucent teal-white plastic
+  const tProbe=cy(1.35,1.35,4.0,mat({color:0xc8ece8,roughness:0.35,transparent:true,opacity:0.88}),24);
+  tProbe.position.set(txS,11.5,tzS); sensG.add(tProbe);
+  // sensing slot indicator (dark groove through bottom of probe)
+  const tSlot=bx(0.12,2.2,2.72,mat({color:0x1a2e2a,roughness:0.9}));
+  tSlot.position.set(txS,10.2,tzS); sensG.add(tSlot);
+  // bottom rounded cap
+  const tBottom=cy(1.35,0.6,0.5,mat({color:0xd8f0ee,roughness:0.4,transparent:true,opacity:0.8}),24);
+  tBottom.position.set(txS,9.25,tzS); sensG.add(tBottom);
+  // separate PCB module on tray floor (black board + blue pot)
+  const tPCB=bx(3.0,0.28,2.0,mat({color:0x0f0f0f,roughness:0.65}));
+  tPCB.position.set(txS,FY+0.44,tzS+3.2); sensG.add(tPCB);
+  sensG.add(place(cy(0.5,0.5,0.5,mat({color:0x1a4db5,roughness:0.4}),16),txS,FY+0.75,tzS+3.6));
+  // 3 colored wires (red, yellow, blue) from PCB down to probe collar
+  [{c:0xff2222,ox:-0.35},{c:0xffcc00,ox:0},{c:0x2255ff,ox:0.35}].forEach(({c,ox})=>{
+    const wc=new T3.CatmullRomCurve3([
+      new T3.Vector3(txS+ox,FY+0.6,tzS+3.2),
+      new T3.Vector3(txS+ox,FY-2,tzS+1.5),
+      new T3.Vector3(txS+ox,14.6,tzS)
+    ]);
+    sensG.add(new T3.Mesh(new T3.TubeGeometry(wc,14,0.1,8,false),wireMat(c)));
+  });
+  // clear waterproof sleeve over turbidity wire bundle
+  const tSleeveC=new T3.CatmullRomCurve3([
+    new T3.Vector3(txS,FY+0.6,tzS+3.2),new T3.Vector3(txS,FY-2,tzS+1.5),new T3.Vector3(txS,14.6,tzS)]);
+  sensG.add(new T3.Mesh(new T3.TubeGeometry(tSleeveC,14,0.44,12,false),clearSlv));
+
+  // ── DS18B20 temp probe — right side of tank (opposite turbidity) ──
+  const pxS=6, pzS=-6;
+  const probeH=11;
+  const probe=cy(0.38,0.38,probeH,M.metal,14);
+  probe.position.set(pxS,mountY-probeH/2+1,pzS); sensG.add(probe);
+  const probeTip=cy(0.38,0.05,0.8,M.metal,14);
+  probeTip.position.set(pxS,mountY-probeH+0.35+1,pzS); sensG.add(probeTip);
+  const probeBand=cy(0.44,0.44,0.5,mat({color:0xb87333,roughness:0.35,metalness:0.9}),14);
+  probeBand.position.set(pxS,mountY-probeH+1.6,pzS); sensG.add(probeBand);
+  const pCurve=new T3.CatmullRomCurve3([
+    new T3.Vector3(9,FY+0.6,TZ), new T3.Vector3(pxS,FY+0.3,pzS), new T3.Vector3(pxS,mountY+0.8,pzS)]);
+  sensG.add(new T3.Mesh(new T3.TubeGeometry(pCurve,16,0.18,8,false),mat({color:0x111111,roughness:0.7})));
+  // clear waterproof sleeve over DS18B20 cable
+  const pSleeveC=new T3.CatmullRomCurve3([
+    new T3.Vector3(9,FY+0.6,TZ), new T3.Vector3(pxS,FY+0.3,pzS), new T3.Vector3(pxS,mountY+0.8,pzS)]);
+  sensG.add(new T3.Mesh(new T3.TubeGeometry(pSleeveC,16,0.32,10,false),clearSlv));
+
+  // ── Float switch — horizontal at water level, pivots from center of casing front face ──
+  const fxS=0, fzS=fcZ;
+  const fCasingFront=fcZ+FC.d/2; // z = 0 (front face of casing)
+  const fNub=cy(0.2,0.2,0.5,M.black,8);
+  fNub.rotation.x=Math.PI/2; fNub.position.set(fxS,fcY,fCasingFront); sensG.add(fNub);
+  // float cylinder lies horizontal at water level, extends +z from pivot
+  const fCyl=cy(0.55,0.55,2.8,M.black,16);
+  fCyl.rotation.x=Math.PI/2; fCyl.position.set(fxS,fcY,fCasingFront+1.4); sensG.add(fCyl);
+  const fCap=cy(0.55,0.05,0.3,M.black,16);
+  fCap.rotation.x=Math.PI/2; fCap.position.set(fxS,fcY,fCasingFront+2.95); sensG.add(fCap);
+
+  // ── Mini submersible pump — right side, white cylindrical body ────
+  const pumpX=6, pumpZ=-7;
+  const pumpWht=mat({color:0xf0eeea,roughness:0.65,metalness:0});
+  // main horizontal white cylinder body (lying along z-axis)
+  const pumpBody=cy(1.35,1.35,5.0,pumpWht,24);
+  pumpBody.rotation.x=Math.PI/2; pumpBody.position.set(pumpX,AQ.wall+1.6,pumpZ); sensG.add(pumpBody);
+  // flat mounting base
+  const pumpBase=bx(2.8,0.5,5.2,pumpWht,true); pumpBase.position.set(pumpX,AQ.wall+0.3,pumpZ); sensG.add(pumpBase);
+  // outlet nozzle on top (points upward, slightly toward front)
+  const pumpNozzle=cy(0.48,0.48,1.8,pumpWht,16);
+  pumpNozzle.position.set(pumpX,AQ.wall+3.2,pumpZ-1.2); sensG.add(pumpNozzle);
+  // end intake nozzle on back face (points in -z direction)
+  const pumpIntake=cy(0.4,0.4,1.0,pumpWht,16);
+  pumpIntake.rotation.x=Math.PI/2; pumpIntake.position.set(pumpX,AQ.wall+1.6,pumpZ-3.1); sensG.add(pumpIntake);
+  // red + black wires from top of body
+  [{c:0xff2222,ox:-0.25},{c:0x111111,ox:0.25}].forEach(({c,ox})=>{
+    const pw=new T3.CatmullRomCurve3([
+      new T3.Vector3(pumpX+ox,AQ.wall+2.9,pumpZ+1.5),
+      new T3.Vector3(pumpX+ox,AQ.wall+5,pumpZ+2.5),
+      new T3.Vector3(pumpX+ox,12,pumpZ+2.5)
+    ]);
+    sensG.add(new T3.Mesh(new T3.TubeGeometry(pw,12,0.13,8,false),wireMat(c)));
+  });
+  // clear waterproof sleeve over pump wire bundle
+  const pWSleeveC=new T3.CatmullRomCurve3([
+    new T3.Vector3(pumpX,AQ.wall+2.9,pumpZ+1.5),
+    new T3.Vector3(pumpX,AQ.wall+5,pumpZ+2.5),
+    new T3.Vector3(pumpX,12,pumpZ+2.5)
+  ]);
+  sensG.add(new T3.Mesh(new T3.TubeGeometry(pWSleeveC,12,0.38,10,false),clearSlv));
+  // outlet tube from nozzle top up to platform
+  const tCurve=new T3.CatmullRomCurve3([
+    new T3.Vector3(pumpX,AQ.wall+4.1,pumpZ-1.2),
+    new T3.Vector3(pumpX-1,10,pumpZ),
+    new T3.Vector3(pumpX,17,pumpZ+2),
+    new T3.Vector3(pumpX+1,FY-0.5,pumpZ+2)
+  ]);
+  sensG.add(new T3.Mesh(new T3.TubeGeometry(tCurve,28,0.42,12,false),M.tube));
+
+  // ── Rising bubbles ────────────────────────────────
+  const bubGeo=new T3.SphereGeometry(0.16,8,8);
+  const bubMat=mat({color:0xcdeeff,transparent:true,opacity:0.6});
+  const bubbles=[];
+  for(let i=0;i<12;i++){
+    const b=new T3.Mesh(bubGeo,bubMat);
+    b.position.set(pumpX+(Math.random()-.5)*2, AQ.wall+1+Math.random()*4, pumpZ+(Math.random()-.5)*2);
+    b.userData.spd=3.5+Math.random()*3.5; sensG.add(b); bubbles.push(b);
+  }
+
+  // ══════════════════════════════════════════════════
+  // 7. LABELS
+  // ══════════════════════════════════════════════════
+  const lblDefs=[
+    {t:'Acrylic tank (20×20×20)',    p:new T3.Vector3(-AQ.w/2, AQ.h*0.4, AQ.d/2), cls:''},
+    {t:'Foam tray (25×10×7)',        p:new T3.Vector3(TR.w/2,  AQ.h+TR.h*0.5, -TR.wall/2+0.5), cls:''},
+    {t:'Lid',                        p:new T3.Vector3(0, lidY+1.2, TZ), cls:'', dyn:'lid'},
+    {t:'Lower platform (5 cm)',      p:new T3.Vector3(-LP.w/2-1, lpYc, -5), cls:''},
+    {t:'Float sensor casing (4³)',   p:new T3.Vector3(4, fcY, fcZ-3), cls:'sensor'},
+    {t:'ESP32',                      p:new T3.Vector3(-10.5, FY+2.2, -3), cls:''},
+    {t:'Breadboard + relay',         p:new T3.Vector3(3, FY+1.6, TZ-3), cls:''},
+    {t:'Turbidity sensor',           p:new T3.Vector3(txS-2.8, 14.0, tzS-2), cls:'sensor'},
+    {t:'DS18B20 temp probe',         p:new T3.Vector3(pxS+3, mountY-probeH/2+1, pzS), cls:'sensor'},
+    {t:'Submersible pump',           p:new T3.Vector3(pumpX+2.5, AQ.wall+2, pumpZ-2), cls:'sensor'},
+  ];
+  const lblLayer=document.getElementById('labels');
+  lblDefs.forEach(d=>{const e=document.createElement('div');e.className='lbl '+d.cls;e.textContent=d.t;lblLayer.appendChild(e);d.el=e;});
+
+  // ══════════════════════════════════════════════════
+  // 8. ORBIT CONTROLS
+  // ══════════════════════════════════════════════════
+  const target=new T3.Vector3(0,12,0);
+  const sph={r:66,theta:0.9,phi:1.08};
+  const DEF={r:66,theta:0.9,phi:1.08,tx:0,ty:12,tz:0};
+  let drag=false,pan=false,mx=0,my=0,autoRot=false;
+
+  function applyCam(){
+    const ph=Math.max(0.18,Math.min(1.5,sph.phi));
+    camera.position.set(
+      target.x+sph.r*Math.sin(ph)*Math.sin(sph.theta),
+      target.y+sph.r*Math.cos(ph),
+      target.z+sph.r*Math.sin(ph)*Math.cos(sph.theta));
+    camera.lookAt(target);
+  }
+  canvas.addEventListener('pointerdown',e=>{drag=true;pan=(e.button===2||e.shiftKey);mx=e.clientX;my=e.clientY;canvas.setPointerCapture(e.pointerId);});
+  canvas.addEventListener('pointermove',e=>{
+    if(!drag)return;const dx=e.clientX-mx,dy=e.clientY-my;mx=e.clientX;my=e.clientY;
+    if(pan){const f=sph.r*0.0015,r=new T3.Vector3().subVectors(camera.position,target).cross(new T3.Vector3(0,1,0)).normalize();
+      target.addScaledVector(r,-dx*f);target.y+=dy*f;}
+    else{sph.theta-=dx*0.006;sph.phi-=dy*0.006;}
+  });
+  canvas.addEventListener('pointerup',()=>{drag=false;});
+  canvas.addEventListener('contextmenu',e=>e.preventDefault());
+  canvas.addEventListener('wheel',e=>{e.preventDefault();sph.r=Math.max(24,Math.min(140,sph.r*(1+Math.sign(e.deltaY)*0.08)));},{passive:false});
+  let pinchD=0;
+  canvas.addEventListener('touchmove',e=>{if(e.touches.length===2){e.preventDefault();const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(pinchD)sph.r=Math.max(24,Math.min(140,sph.r*(pinchD/d)));pinchD=d;}},{passive:false});
+  canvas.addEventListener('touchend',()=>{pinchD=0;});
+
+  // ══════════════════════════════════════════════════
+  // 9. UI CONTROLS
+  // ══════════════════════════════════════════════════
+  function toggle(id,onLbl,offLbl,init,fn){
+    const b=document.getElementById(id);let s=init;
+    const paint=()=>{b.classList.toggle('on',s);b.querySelector('.state').textContent=s?onLbl:offLbl;};
+    b.addEventListener('click',()=>{s=!s;paint();fn(s);});paint();fn(s);
+  }
+  let lidOpen=false;
+  toggle('b-lid','closed','open',true,on=>{lidOpen=!on;});
+  let waterOn=true;
+  toggle('b-water','on','off',true,on=>{waterG.visible=on; waterOn=on;});
+  toggle('b-internals','shown','hidden',true,on=>{elecG.visible=on;});
+  toggle('b-labels','on','off',true,on=>{lblLayer.style.display=on?'block':'none';});
+  document.getElementById('b-rotate').addEventListener('click',function(){autoRot=!autoRot;this.classList.toggle('on',autoRot);this.querySelector('.state').textContent=autoRot?'on':'off';});
+  toggle('b-casing','foam','black',true,on=>{
+    const fc=on?0xf2f0ea:0x111418, fl=on?0xe8d0d4:0x111418;
+    M.foam.color.setHex(fc); M.foamLo.color.setHex(fl); M.foamCas.color.setHex(fc);
+  });
+  document.getElementById('b-reset').addEventListener('click',()=>{Object.assign(sph,{r:DEF.r,theta:DEF.theta,phi:DEF.phi});target.set(DEF.tx,DEF.ty,DEF.tz);});
+
+  document.getElementById('b-theme').addEventListener('click',function(){
+    const light=document.body.classList.toggle('light');
+    this.classList.toggle('on',light);
+    this.querySelector('.state').textContent=light?'on':'off';
+    scene.fog.color.setHex(light?0xcce0ec:0x06141b);
+    ground.material.color.setHex(light?0xb8d0dc:0x081e26);
+  });
+
+  // ── Resize ───────────────────────────────────────
+  function resize(){const w=window.innerWidth,h=window.innerHeight;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();}
+  window.addEventListener('resize',resize);resize();
+
+  let floatAngle=Math.PI/2;
+
+  // ══════════════════════════════════════════════════
+  // 10. RENDER LOOP
+  // ══════════════════════════════════════════════════
+  const clock=new T3.Clock(); const tmp=new T3.Vector3();
+  function frame(){
+    const dt=clock.getDelta();
+    if(autoRot) sph.theta+=dt*0.22;
+    // lid lift animation
+    const goalY=lidOpen?lidRestY+14:lidRestY;
+    lidG_.position.y+=(goalY-lidG_.position.y)*Math.min(1,dt*6);
+    lidG_.rotation.z+=((lidOpen?-0.15:0)-lidG_.rotation.z)*Math.min(1,dt*6);
+    // float sensor: horizontal when water on, falls down when water off
+    const floatTarget=waterOn?Math.PI/2:0.08;
+    floatAngle+=(floatTarget-floatAngle)*Math.min(1,dt*2.5);
+    fCyl.rotation.x=floatAngle;
+    fCyl.position.y=fcY-1.4*Math.cos(floatAngle);
+    fCyl.position.z=fCasingFront+1.4*Math.sin(floatAngle);
+    fCap.rotation.x=floatAngle;
+    fCap.position.y=fcY-2.95*Math.cos(floatAngle);
+    fCap.position.z=fCasingFront+2.95*Math.sin(floatAngle);
+    // bubbles rise
+    bubbles.forEach(b=>{b.position.y+=dt*b.userData.spd;if(b.position.y>waterTop-0.3)b.position.y=AQ.wall+1;});
+    applyCam();
+    renderer.render(scene,camera);
+    // update labels
+    if(lblLayer.style.display!=='none'){
+      const W=window.innerWidth,H=window.innerHeight;
+      lblDefs.forEach(d=>{
+        let p=d.p; if(d.dyn==='lid'){p=d.p.clone();p.y=lidG_.position.y+1;}
+        tmp.copy(p).project(camera);
+        if(tmp.z<1&&Math.abs(tmp.x)<1&&Math.abs(tmp.y)<1){
+          d.el.style.opacity=1;
+          d.el.style.left=((tmp.x*.5+.5)*W)+'px';
+          d.el.style.top=((-.5*tmp.y+.5)*H)+'px';
+        }else{d.el.style.opacity=0;}
+      });
+    }
+    requestAnimationFrame(frame);
+  }
+  applyCam(); frame();
+  setTimeout(()=>document.getElementById('loader').classList.add('hide'),700);
+})();
+</script>
+</body>
+</html>
