@@ -1,6 +1,8 @@
 # FishMate · 3D Prototype Viewer
 
-Interactive 3D model of the FishMate aquarium monitoring prototype. Open `fishmate-3d.html` in any modern browser — no installation or internet connection required.
+Interactive 3D model of the FishMate aquarium monitoring prototype. Open `index.html` in any modern browser — no installation required (an internet connection is needed the first time to fetch Three.js and the fonts from their CDNs).
+
+**Live demo:** https://martinez-kateeurisse.github.io/FishMate-3D-Prototype/
 
 ## Usage
 
